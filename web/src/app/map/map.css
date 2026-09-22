@@ -1,0 +1,1607 @@
+/* =========================================================
+   LANKA TRAVEL EXPLORER
+   INTERACTIVE TOURISM ATLAS
+========================================================= */
+
+.map-page {
+  width: 100%;
+  height: 100vh;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+
+  background: #dce6df;
+}
+
+.sl-map-shell {
+  position: relative;
+
+  width: 100vw;
+  height: 100vh;
+
+  min-height: 700px;
+
+  overflow: hidden;
+
+  background: #dce6df;
+}
+
+.sl-map-shell .maplibregl-map {
+  position: absolute;
+
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+
+.sl-map-shell::after {
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  z-index: 2;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(4, 38, 29, 0.06),
+      transparent 24%,
+      transparent 78%,
+      rgba(4, 38, 29, 0.025)
+    );
+}
+
+/* =========================================================
+   TOP BAR
+========================================================= */
+
+.sl-map-topbar {
+  position: absolute;
+
+  z-index: 30;
+
+  top: 24px;
+  left: 22px;
+  right: 22px;
+
+  min-height: 72px;
+
+  padding: 0 20px;
+
+  display: grid;
+
+  grid-template-columns:
+    1fr
+    auto
+    1fr;
+
+  align-items: center;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.72);
+
+  border-radius: 22px;
+
+  background:
+    rgba(255, 253, 248, 0.92);
+
+  backdrop-filter:
+    blur(24px);
+
+  box-shadow:
+    0
+    16px
+    50px
+    rgba(10, 42, 31, 0.12);
+}
+
+.map-back-button,
+.map-reset-button {
+  height: 42px;
+
+  border: 0;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  color: #123c31;
+
+  background: transparent;
+
+  font-size: 13px;
+
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+.map-back-button {
+  justify-self: start;
+}
+
+.map-reset-button {
+  justify-self: end;
+
+  padding: 0 15px;
+
+  border:
+    1px solid
+    rgba(17, 63, 49, 0.1);
+
+  border-radius: 100px;
+
+  background:
+    rgba(255, 255, 255, 0.72);
+}
+
+.map-page-brand {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+}
+
+.map-page-brand-icon {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  color: white;
+
+  background: #0f4939;
+}
+
+.map-page-brand > div:last-child {
+  display: flex;
+
+  flex-direction: column;
+}
+
+.map-page-brand strong {
+  color: #173c31;
+
+  font-size: 10px;
+
+  letter-spacing: 0.2em;
+}
+
+.map-page-brand span {
+  margin-top: 4px;
+
+  color: #727d79;
+
+  font-size: 8px;
+}
+
+/* =========================================================
+   CATEGORY FILTERS
+========================================================= */
+
+.map-filter-panel {
+  position: absolute;
+
+  z-index: 29;
+
+  top: 118px;
+  left: 50%;
+
+  transform:
+    translateX(-50%);
+
+  width:
+    min(
+      890px,
+      calc(100% - 50px)
+    );
+
+  padding:
+    13px
+    14px
+    14px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.74);
+
+  border-radius: 18px;
+
+  background:
+    rgba(255, 253, 248, 0.91);
+
+  backdrop-filter:
+    blur(22px);
+
+  box-shadow:
+    0
+    14px
+    45px
+    rgba(13, 51, 39, 0.09);
+}
+
+.map-filter-label {
+  display: block;
+
+  margin:
+    0
+    8px
+    8px;
+
+  color: #68746f;
+
+  font-size: 8px;
+
+  font-weight: 850;
+
+  letter-spacing: 0.19em;
+}
+
+.map-filter-scroll,
+.route-selector-scroll {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  overflow-x: auto;
+
+  scrollbar-width: none;
+}
+
+.map-filter-scroll::-webkit-scrollbar,
+.route-selector-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.map-filter-scroll button {
+  min-width: max-content;
+
+  height: 40px;
+
+  padding:
+    0
+    15px;
+
+  border:
+    1px solid
+    rgba(25, 66, 53, 0.12);
+
+  border-radius: 100px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 7px;
+
+  color: #5d6864;
+
+  background:
+    rgba(255, 255, 255, 0.78);
+
+  font-size: 10px;
+
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+.map-filter-scroll button.active {
+  color: white;
+
+  border-color: #0e4536;
+
+  background: #0e4536;
+}
+
+/* =========================================================
+   CURATED ROUTE SELECTOR
+========================================================= */
+
+.map-route-panel {
+  position: absolute;
+
+  z-index: 28;
+
+  top: 226px;
+  left: 50%;
+
+  transform:
+    translateX(-50%);
+
+  width:
+    min(
+      890px,
+      calc(100% - 50px)
+    );
+
+  padding:
+    12px
+    14px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.7);
+
+  border-radius: 17px;
+
+  background:
+    rgba(255, 253, 248, 0.88);
+
+  backdrop-filter:
+    blur(22px);
+
+  box-shadow:
+    0
+    12px
+    38px
+    rgba(13, 51, 39, 0.08);
+}
+
+.route-panel-heading {
+  margin:
+    0
+    7px
+    8px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+}
+
+.route-panel-heading > span {
+  color: #68746f;
+
+  font-size: 8px;
+
+  font-weight: 850;
+
+  letter-spacing: 0.19em;
+}
+
+.route-panel-heading button {
+  border: 0;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 5px;
+
+  color: #825d2d;
+
+  background: transparent;
+
+  font-size: 8px;
+
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+.route-selector-scroll button {
+  height: 38px;
+
+  min-width: max-content;
+
+  padding:
+    0
+    14px;
+
+  border:
+    1px solid
+    rgba(25, 66, 53, 0.11);
+
+  border-radius: 100px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #5f6b66;
+
+  background:
+    rgba(255, 255, 255, 0.75);
+
+  font-size: 9px;
+
+  font-weight: 750;
+
+  cursor: pointer;
+
+  transition:
+    0.2s;
+}
+
+.route-selector-scroll button:hover {
+  transform:
+    translateY(-1px);
+}
+
+.route-selector-scroll button.active {
+  color: white;
+
+  border-color: #b47a32;
+
+  background: #a97031;
+
+  box-shadow:
+    0
+    6px
+    18px
+    rgba(151, 98, 40, 0.2);
+}
+
+/* =========================================================
+   ISLAND MARKERS
+========================================================= */
+
+.tourism-map-marker {
+  position: relative;
+
+  border: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  padding: 0;
+
+  color: #123b30;
+
+  background: transparent;
+
+  cursor: pointer;
+}
+
+.marker-icon {
+  position: relative;
+
+  z-index: 3;
+
+  width: 40px;
+  height: 40px;
+
+  border:
+    3px solid white;
+
+  border-radius: 50%;
+
+  display: grid;
+
+  place-items: center;
+
+  color: white;
+
+  background: #15513f;
+
+  box-shadow:
+    0
+    8px
+    22px
+    rgba(12, 50, 39, 0.23);
+}
+
+.marker-label {
+  margin-top: 5px;
+
+  padding:
+    6px
+    10px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  border-radius: 9px;
+
+  color: #153b31;
+
+  background:
+    rgba(255, 253, 248, 0.95);
+
+  box-shadow:
+    0
+    6px
+    18px
+    rgba(24, 48, 40, 0.1);
+
+  font-size: 9px;
+
+  font-weight: 850;
+
+  white-space: nowrap;
+}
+
+.marker-label small {
+  margin-top: 3px;
+
+  color: #7d8783;
+
+  font-size: 7px;
+}
+
+.tourism-map-marker.pilot
+.marker-icon {
+  width: 50px;
+  height: 50px;
+
+  border-width: 4px;
+
+  background: #0b3c30;
+}
+
+.tourism-map-marker.pilot
+.marker-label {
+  color: white;
+
+  background: #0b3c30;
+}
+
+.marker-pulse {
+  position: absolute;
+
+  z-index: 1;
+
+  top: 5px;
+
+  width: 40px;
+  height: 40px;
+
+  border-radius: 50%;
+
+  background:
+    rgba(
+      27,
+      108,
+      79,
+      0.28
+    );
+
+  animation:
+    tourism-marker-pulse
+    2.2s
+    infinite;
+}
+
+@keyframes tourism-marker-pulse {
+  0% {
+    transform:
+      scale(0.7);
+
+    opacity: 0.8;
+  }
+
+  70% {
+    transform:
+      scale(1.9);
+
+    opacity: 0;
+  }
+
+  100% {
+    transform:
+      scale(1.9);
+
+    opacity: 0;
+  }
+}
+
+/* =========================================================
+   LARGE MAP LABEL
+========================================================= */
+
+.island-map-label,
+.district-map-label {
+  position: absolute;
+
+  z-index: 10;
+
+  right: 34px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-end;
+
+  pointer-events: none;
+
+  color: #164939;
+}
+
+.island-map-label {
+  top: 190px;
+}
+
+.district-map-label {
+  top: 330px;
+}
+
+.island-map-label span,
+.district-map-label span {
+  font-size: 7px;
+
+  font-weight: 850;
+
+  letter-spacing: 0.25em;
+}
+
+.island-map-label strong,
+.district-map-label strong {
+  margin-top: 5px;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 34px;
+
+  font-weight: 400;
+
+  letter-spacing: 0.07em;
+}
+
+.district-map-label strong {
+  font-size: 40px;
+}
+
+.island-map-label small,
+.district-map-label small {
+  margin-top: 3px;
+
+  color: #71807a;
+
+  font-size: 7px;
+}
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.selected-map-place,
+.kandy-overview-card,
+.attraction-map-card,
+.route-overview-card {
+  position: absolute;
+
+  z-index: 31;
+
+  left: 26px;
+
+  bottom: 26px;
+
+  width:
+    min(
+      420px,
+      calc(100% - 52px)
+    );
+
+  max-height:
+    calc(
+      100vh -
+      350px
+    );
+
+  overflow-y: auto;
+
+  padding: 27px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.73);
+
+  border-radius: 25px;
+
+  color: #17241f;
+
+  background:
+    rgba(255, 253, 248, 0.95);
+
+  backdrop-filter:
+    blur(25px);
+
+  box-shadow:
+    0
+    26px
+    75px
+    rgba(10, 36, 28, 0.19);
+}
+
+.selected-map-place::-webkit-scrollbar,
+.kandy-overview-card::-webkit-scrollbar,
+.attraction-map-card::-webkit-scrollbar,
+.route-overview-card::-webkit-scrollbar {
+  width: 5px;
+}
+
+.selected-map-place::-webkit-scrollbar-thumb,
+.kandy-overview-card::-webkit-scrollbar-thumb,
+.attraction-map-card::-webkit-scrollbar-thumb,
+.route-overview-card::-webkit-scrollbar-thumb {
+  background: #ccd5d0;
+
+  border-radius: 20px;
+}
+
+.selected-map-close {
+  position: absolute;
+
+  right: 16px;
+
+  top: 16px;
+
+  width: 34px;
+  height: 34px;
+
+  border: 0;
+
+  border-radius: 50%;
+
+  display: grid;
+
+  place-items: center;
+
+  color: #4d5e58;
+
+  background: #eff3f0;
+
+  cursor: pointer;
+}
+
+.selected-map-top {
+  display: flex;
+
+  align-items: center;
+
+  gap: 11px;
+
+  margin-bottom: 18px;
+}
+
+.selected-category-icon {
+  width: 44px;
+  height: 44px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  color: white;
+
+  background: #0f4939;
+}
+
+.selected-verified,
+.selected-preview {
+  display: flex;
+
+  align-items: center;
+
+  gap: 5px;
+
+  font-size: 9px;
+}
+
+.selected-verified {
+  color: #22714f;
+}
+
+.selected-preview {
+  color: #877d6c;
+}
+
+.selected-map-location {
+  margin-top: 5px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  color: #78827e;
+
+  font-size: 10px;
+}
+
+.selected-map-place h2,
+.kandy-overview-card h2,
+.attraction-map-card h2,
+.route-overview-card h2 {
+  margin:
+    9px
+    0
+    12px;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 38px;
+
+  line-height: 1.05;
+
+  font-weight: 400;
+
+  letter-spacing:
+    -0.035em;
+}
+
+.selected-map-place > p,
+.kandy-overview-card > p,
+.attraction-map-card > p,
+.route-overview-card > p {
+  margin: 0;
+
+  color: #68736e;
+
+  font-size: 12px;
+
+  line-height: 1.65;
+}
+
+.selected-map-stat {
+  margin-top: 18px;
+
+  padding-top: 16px;
+
+  border-top:
+    1px solid
+    rgba(19, 61, 48, 0.1);
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 13px;
+}
+
+.selected-map-stat strong {
+  font-family:
+    Georgia,
+    serif;
+
+  font-size: 36px;
+
+  font-weight: 400;
+
+  color: #123f32;
+}
+
+.selected-map-stat span {
+  color: #727d78;
+
+  font-size: 8px;
+
+  text-transform:
+    uppercase;
+}
+
+.selected-explore-button {
+  width: 100%;
+
+  min-height: 51px;
+
+  margin-top: 19px;
+
+  padding:
+    0
+    18px;
+
+  border: 0;
+
+  border-radius: 13px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content:
+    space-between;
+
+  color: white;
+
+  background: #0e4938;
+
+  font-size: 12px;
+
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.selected-explore-button.disabled {
+  color: #7f8884;
+
+  background: #e7ebe8;
+
+  cursor: default;
+}
+
+/* =========================================================
+   KANDY OVERVIEW
+========================================================= */
+
+.kandy-overview-badge {
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding:
+    7px
+    10px;
+
+  border-radius: 30px;
+
+  color: #23704e;
+
+  background: #e8f3eb;
+
+  font-size: 9px;
+
+  font-weight: 800;
+}
+
+.kandy-overview-region {
+  display: block;
+
+  margin-top: 20px;
+
+  color: #74817c;
+
+  font-size: 8px;
+
+  font-weight: 850;
+
+  letter-spacing: 0.2em;
+}
+
+.kandy-overview-stats {
+  display: grid;
+
+  grid-template-columns:
+    1fr
+    1fr;
+
+  gap: 10px;
+
+  margin-top: 21px;
+}
+
+.kandy-overview-stats > div {
+  min-height: 83px;
+
+  padding: 14px;
+
+  border:
+    1px solid
+    rgba(18, 62, 48, 0.09);
+
+  border-radius: 14px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 11px;
+
+  background:
+    rgba(245, 247, 244, 0.75);
+}
+
+.kandy-overview-stats strong {
+  font-family:
+    Georgia,
+    serif;
+
+  font-size: 30px;
+
+  font-weight: 400;
+
+  color: #123f32;
+}
+
+.kandy-overview-stats span {
+  color: #79837f;
+
+  font-size: 8px;
+
+  text-transform:
+    uppercase;
+}
+
+.coordinate-progress {
+  margin-top: 18px;
+}
+
+.coordinate-progress
+> div:first-child {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  color: #69756f;
+
+  font-size: 9px;
+}
+
+.coordinate-progress-track {
+  width: 100%;
+
+  height: 7px;
+
+  margin-top: 9px;
+
+  overflow: hidden;
+
+  border-radius: 50px;
+
+  background: #e3e9e5;
+}
+
+.coordinate-progress-value {
+  height: 100%;
+
+  border-radius: 50px;
+
+  background: #1d7754;
+}
+
+.kandy-overview-note {
+  margin-top: 17px;
+
+  padding: 12px;
+
+  border-radius: 11px;
+
+  color: #68756f;
+
+  background: #f2f4f1;
+
+  font-size: 9px;
+
+  line-height: 1.5;
+}
+
+/* =========================================================
+   ATTRACTION CARD
+========================================================= */
+
+.attraction-card-id {
+  display: inline-block;
+
+  margin-bottom: 12px;
+
+  padding:
+    6px
+    9px;
+
+  border-radius: 30px;
+
+  color: #315a4d;
+
+  background: #e7eee9;
+
+  font-size: 8px;
+
+  font-weight: 850;
+
+  letter-spacing:
+    0.13em;
+}
+
+.attraction-map-card h2 {
+  max-width: 340px;
+
+  font-size: 34px;
+}
+
+.attraction-meta-row {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 7px;
+
+  margin-bottom: 15px;
+}
+
+.attraction-meta-row span {
+  padding:
+    7px
+    10px;
+
+  border:
+    1px solid
+    #dde4df;
+
+  border-radius: 30px;
+
+  color: #55625d;
+
+  background:
+    rgba(255, 255, 255, 0.62);
+
+  font-size: 9px;
+}
+
+.attraction-verification {
+  margin-top: 18px;
+
+  padding: 12px;
+
+  border-radius: 11px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #26704f;
+
+  background: #e9f4ec;
+
+  font-size: 9px;
+
+  font-weight: 750;
+}
+
+/* =========================================================
+   ROUTE CARD
+========================================================= */
+
+.route-card-badge {
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding:
+    7px
+    10px;
+
+  border-radius: 30px;
+
+  color: #805826;
+
+  background: #f5eadb;
+
+  font-size: 9px;
+
+  font-weight: 800;
+}
+
+.route-card-id {
+  display: block;
+
+  margin-top: 17px;
+
+  color: #8b795f;
+
+  font-size: 8px;
+
+  font-weight: 800;
+
+  letter-spacing:
+    0.16em;
+}
+
+.route-card-meta {
+  margin-top: 17px;
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 7px;
+}
+
+.route-card-meta span {
+  min-height: 31px;
+
+  padding:
+    0
+    10px;
+
+  border:
+    1px solid
+    #e2ddd5;
+
+  border-radius: 100px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 5px;
+
+  color: #66665f;
+
+  background:
+    rgba(255, 255, 255, 0.68);
+
+  font-size: 9px;
+}
+
+.route-stop-list {
+  margin-top: 18px;
+
+  border-top:
+    1px solid
+    #e6e5df;
+}
+
+.route-stop-list button {
+  width: 100%;
+
+  min-height: 47px;
+
+  padding:
+    7px
+    2px;
+
+  border: 0;
+
+  border-bottom:
+    1px solid
+    #ebe9e4;
+
+  display: grid;
+
+  grid-template-columns:
+    27px
+    1fr
+    auto;
+
+  align-items: center;
+
+  gap: 8px;
+
+  text-align: left;
+
+  color: #334940;
+
+  background: transparent;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.route-stop-number {
+  width: 25px;
+  height: 25px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  color: white;
+
+  background: #0f4939;
+
+  font-size: 8px;
+}
+
+.route-preview-warning {
+  margin-top: 15px;
+
+  padding: 11px;
+
+  border-radius: 10px;
+
+  color: #786a58;
+
+  background: #f5f1ea;
+
+  font-size: 8px;
+
+  line-height: 1.5;
+}
+
+/* =========================================================
+   LEGEND
+========================================================= */
+
+.map-legend {
+  position: absolute;
+
+  z-index: 25;
+
+  right: 26px;
+
+  bottom: 26px;
+
+  padding:
+    11px
+    14px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.72);
+
+  border-radius: 100px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 15px;
+
+  color: #63706b;
+
+  background:
+    rgba(255, 253, 248, 0.91);
+
+  backdrop-filter:
+    blur(17px);
+
+  box-shadow:
+    0
+    10px
+    30px
+    rgba(20, 52, 42, 0.08);
+
+  font-size: 8px;
+}
+
+.map-legend div {
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+}
+
+.legend-dot.verified {
+  background: #1f7855;
+}
+
+.legend-dot.preview {
+  background: #b2aa9a;
+}
+
+.legend-cluster-example {
+  width: 20px;
+  height: 20px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  color: white;
+
+  background: #103f33;
+
+  font-size: 7px;
+
+  font-weight: 800;
+}
+
+.legend-boundary {
+  width: 20px;
+  height: 10px;
+
+  border:
+    2px dashed
+    #14513f;
+
+  border-radius: 3px;
+
+  background:
+    rgba(31, 118, 85, 0.08);
+}
+
+.legend-route {
+  width: 23px;
+  height: 4px;
+
+  border-radius: 10px;
+
+  background: #b47a32;
+}
+
+/* =========================================================
+   MAPLIBRE CONTROLS
+========================================================= */
+
+.sl-map-shell
+.maplibregl-ctrl-bottom-right {
+  right: 11px;
+
+  bottom: 76px;
+}
+
+.sl-map-shell
+.maplibregl-ctrl-group {
+  overflow: hidden;
+
+  border-radius: 12px;
+
+  box-shadow:
+    0
+    8px
+    30px
+    rgba(15, 48, 38, 0.16);
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 760px) {
+  .sl-map-topbar {
+    top: 12px;
+
+    left: 12px;
+
+    right: 12px;
+
+    min-height: 62px;
+
+    grid-template-columns:
+      auto
+      1fr
+      auto;
+  }
+
+  .map-page-brand {
+    justify-self: center;
+  }
+
+  .map-page-brand span {
+    display: none;
+  }
+
+  .map-back-button {
+    width: 40px;
+
+    justify-content: center;
+
+    font-size: 0;
+  }
+
+  .map-reset-button {
+    width: 40px;
+
+    padding: 0;
+
+    justify-content: center;
+
+    font-size: 0;
+  }
+
+  .map-filter-panel {
+    top: 90px;
+
+    width:
+      calc(100% - 24px);
+  }
+
+  .map-route-panel {
+    top: 185px;
+
+    width:
+      calc(100% - 24px);
+  }
+
+  .island-map-label,
+  .district-map-label,
+  .map-legend {
+    display: none;
+  }
+
+  .selected-map-place,
+  .kandy-overview-card,
+  .attraction-map-card,
+  .route-overview-card {
+    left: 12px;
+
+    bottom: 12px;
+
+    width:
+      calc(100% - 24px);
+
+    max-height: 52vh;
+
+    padding: 21px;
+
+    border-radius: 21px;
+  }
+
+  .selected-map-place h2,
+  .kandy-overview-card h2,
+  .attraction-map-card h2,
+  .route-overview-card h2 {
+    font-size: 31px;
+  }
+
+  .sl-map-shell
+  .maplibregl-ctrl-bottom-right {
+    top: 275px;
+
+    right: 7px;
+
+    bottom: auto;
+  }
+}
+
+@media (max-width: 460px) {
+  .map-page-brand strong {
+    font-size: 8px;
+
+    letter-spacing:
+      0.12em;
+  }
+
+  .map-filter-panel,
+  .map-route-panel {
+    padding: 10px;
+  }
+
+  .map-filter-scroll button,
+  .route-selector-scroll button {
+    height: 37px;
+
+    padding:
+      0
+      12px;
+  }
+
+  .route-panel-heading {
+    margin-bottom: 7px;
+  }
+}
