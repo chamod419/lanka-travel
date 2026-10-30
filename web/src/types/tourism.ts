@@ -33,9 +33,17 @@ export type CoordinatePointType =
   | "AREA_REFERENCE"
   | "GATEWAY";
 
+export type VerificationStatus =
+  | "VERIFIED_OFFICIAL"
+  | "VERIFIED_MULTI_SOURCE"
+  | "NEEDS_VERIFICATION"
+  | "STALE";
+
 export interface MapPlace {
   id: string;
+
   name: string;
+
   region: string;
 
   latitude: number;
@@ -54,24 +62,41 @@ export interface MapPlace {
 
 export interface AttractionMapPoint {
   id: string;
+
+  slug: string;
+
   name: string;
+
   area: string;
 
-  latitude: number | null;
-  longitude: number | null;
+  latitude:
+    | number
+    | null;
 
-  coordinateAccuracy: CoordinateAccuracy;
-  coordinatePointType: CoordinatePointType;
+  longitude:
+    | number
+    | null;
+
+  coordinateAccuracy:
+    CoordinateAccuracy;
+
+  coordinatePointType:
+    CoordinatePointType;
 
   coordinateSource?: string;
 
-  category: AttractionCategory;
+  category:
+    AttractionCategory;
 
-  shortDescription: string;
+  shortDescription:
+    string;
 
   duration: string;
 
   verified: boolean;
+
+  verificationStatus?:
+    VerificationStatus;
 
   featured?: boolean;
 }

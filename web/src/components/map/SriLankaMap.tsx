@@ -27,6 +27,10 @@ import {
   useState,
 } from "react";
 
+import {
+  useRouter,
+} from "next/navigation";
+
 import Map, {
   Layer,
   Marker,
@@ -43,11 +47,9 @@ import {
   type MapLayerMouseEvent,
 } from "maplibre-gl";
 
-import { mapPlaces } from "@/data/mapPlaces";
-
 import {
-  kandyMapPoints,
-} from "@/data/KandyMapPoints";
+  mapPlaces,
+} from "@/data/mapPlaces";
 
 import {
   tourismRoutes,
@@ -65,6 +67,10 @@ setWorkerUrl(
   "/maplibre/maplibre-gl-worker.mjs"
 );
 
+/* =========================================================
+   TYPES
+========================================================= */
+
 type IslandFilter =
   | "All"
   | MapCategory;
@@ -78,6 +84,26 @@ type MappedAttraction =
     latitude: number;
     longitude: number;
   };
+
+interface SriLankaMapProps {
+  initialMode?:
+    | "island"
+    | "kandy";
+
+  initialAttractionId?:
+    | string
+    | null;
+
+  kandyMapPoints:
+    AttractionMapPoint[];
+
+  mapDataUnavailable?:
+    boolean;
+}
+
+/* =========================================================
+   FILTER OPTIONS
+========================================================= */
 
 const islandCategories:
   IslandFilter[] = [
@@ -113,22 +139,34 @@ const mediumPriorityLabels =
     "KDY029",
   ]);
 
+/* =========================================================
+   ICONS
+========================================================= */
+
 function IslandCategoryIcon({
   category,
   size = 18,
 }: {
-  category: MapCategory;
+  category:
+    MapCategory;
+
   size?: number;
 }) {
-  switch (category) {
+  switch (
+    category
+  ) {
     case "Heritage":
       return (
-        <Landmark size={size} />
+        <Landmark
+          size={size}
+        />
       );
 
     case "Nature":
       return (
-        <Leaf size={size} />
+        <Leaf
+          size={size}
+        />
       );
 
     case "Wildlife":
@@ -147,17 +185,23 @@ function IslandCategoryIcon({
 
     case "Beaches":
       return (
-        <Waves size={size} />
+        <Waves
+          size={size}
+        />
       );
 
     case "Tea":
       return (
-        <Leaf size={size} />
+        <Leaf
+          size={size}
+        />
       );
 
     default:
       return (
-        <MapPin size={size} />
+        <MapPin
+          size={size}
+        />
       );
   }
 }
@@ -171,18 +215,24 @@ function AttractionCategoryIcon({
 
   size?: number;
 }) {
-  switch (category) {
+  switch (
+    category
+  ) {
     case "Heritage":
     case "Religious":
     case "Museum":
       return (
-        <Landmark size={size} />
+        <Landmark
+          size={size}
+        />
       );
 
     case "Nature":
     case "Tea":
       return (
-        <Leaf size={size} />
+        <Leaf
+          size={size}
+        />
       );
 
     case "Hiking":
@@ -195,30 +245,83 @@ function AttractionCategoryIcon({
 
     default:
       return (
-        <MapPin size={size} />
+        <MapPin
+          size={size}
+        />
       );
   }
 }
 
+/* =========================================================
+   COORDINATE TYPE GUARD
+========================================================= */
+
 function hasCoordinates(
-  place: AttractionMapPoint
+  place:
+    AttractionMapPoint
 ): place is MappedAttraction {
   return (
-    place.latitude !== null &&
-    place.longitude !== null
+    place.latitude !==
+      null &&
+    place.longitude !==
+      null
   );
 }
 
-export default function SriLankaMap() {
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+export default function SriLankaMap({
+  initialMode = "island",
+
+  initialAttractionId = null,
+
+  kandyMapPoints,
+
+  mapDataUnavailable = false,
+}: SriLankaMapProps) {
+  const router =
+    useRouter();
+
   const mapRef =
-    useRef<MapRef>(null);
+    useRef<MapRef>(
+      null
+    );
+
+  /* =======================================================
+     DEEP LINK INITIAL DATA
+  ======================================================= */
+
+  const deepLinkedAttraction =
+    initialAttractionId
+      ? kandyMapPoints.find(
+          (place) =>
+            place.id.toUpperCase() ===
+            initialAttractionId.toUpperCase()
+        ) ?? null
+      : null;
+
+  const startsInKandy =
+    initialMode ===
+      "kandy" ||
+    deepLinkedAttraction !==
+      null;
+
+  /* =======================================================
+     STATE
+  ======================================================= */
 
   const [
     mapMode,
     setMapMode,
   ] = useState<
     "island" | "kandy"
-  >("island");
+  >(
+    startsInKandy
+      ? "kandy"
+      : "island"
+  );
 
   const [
     islandFilter,
@@ -253,7 +356,7 @@ export default function SriLankaMap() {
     setSelectedAttraction,
   ] =
     useState<AttractionMapPoint | null>(
-      null
+      deepLinkedAttraction
     );
 
   const [
@@ -277,23 +380,27 @@ export default function SriLankaMap() {
     mapCursor,
     setMapCursor,
   ] =
-    useState("grab");
+    useState(
+      "grab"
+    );
 
-  /*
-    -----------------------------------------
-    LOAD KANDY DISTRICT BOUNDARY
-    -----------------------------------------
-  */
+  /* =======================================================
+     KANDY DISTRICT BOUNDARY
+  ======================================================= */
 
   useEffect(() => {
-    let cancelled =
-      false;
+    const controller =
+      new AbortController();
 
     async function loadBoundary() {
       try {
         const response =
           await fetch(
-            "/api/boundaries/kandy"
+            "/api/boundaries/kandy",
+            {
+              signal:
+                controller.signal,
+            }
           );
 
         if (
@@ -307,7 +414,6 @@ export default function SriLankaMap() {
           await response.json();
 
         if (
-          cancelled ||
           typeof data !==
             "object" ||
           data === null
@@ -319,31 +425,34 @@ export default function SriLankaMap() {
           data as
             GeoJSONSourceSpecification["data"]
         );
-      } catch {
-        /*
-          Boundary is decorative/
-          contextual.
+      } catch (
+        error
+      ) {
+        if (
+          error instanceof
+            DOMException &&
+          error.name ===
+            "AbortError"
+        ) {
+          return;
+        }
 
-          Attractions and routes
-          must continue working if
-          the external boundary
-          source is unavailable.
-        */
+        console.warn(
+          "Kandy district boundary could not be loaded."
+        );
       }
     }
 
-    loadBoundary();
+    void loadBoundary();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 
-  /*
-    -----------------------------------------
-    BASIC FILTERING
-    -----------------------------------------
-  */
+  /* =======================================================
+     FILTERED ISLAND PLACES
+  ======================================================= */
 
   const filteredIslandPlaces =
     useMemo(() => {
@@ -359,7 +468,13 @@ export default function SriLankaMap() {
           place.category ===
           islandFilter
       );
-    }, [islandFilter]);
+    }, [
+      islandFilter,
+    ]);
+
+  /* =======================================================
+     FILTERED KANDY ATTRACTIONS
+  ======================================================= */
 
   const filteredKandyPlaces =
     useMemo(() => {
@@ -375,7 +490,10 @@ export default function SriLankaMap() {
           place.category ===
           kandyFilter
       );
-    }, [kandyFilter]);
+    }, [
+      kandyFilter,
+      kandyMapPoints,
+    ]);
 
   const allMappedKandyPlaces =
     useMemo(
@@ -383,8 +501,14 @@ export default function SriLankaMap() {
         kandyMapPoints.filter(
           hasCoordinates
         ),
-      []
+      [
+        kandyMapPoints,
+      ]
     );
+
+  /* =======================================================
+     ACTIVE ROUTE
+  ======================================================= */
 
   const activeRoute =
     useMemo(
@@ -394,21 +518,27 @@ export default function SriLankaMap() {
             route.id ===
             activeRouteId
         ) ?? null,
-      [activeRouteId]
+      [
+        activeRouteId,
+      ]
     );
 
   const activeRouteStops =
     useMemo(() => {
-      if (!activeRoute) {
+      if (
+        !activeRoute
+      ) {
         return [];
       }
 
       return activeRoute.stopIds
-        .map((id) =>
-          kandyMapPoints.find(
-            (place) =>
-              place.id === id
-          )
+        .map(
+          (id) =>
+            kandyMapPoints.find(
+              (place) =>
+                place.id ===
+                id
+            )
         )
         .filter(
           (
@@ -421,11 +551,16 @@ export default function SriLankaMap() {
                 )
             )
         );
-    }, [activeRoute]);
+    }, [
+      activeRoute,
+      kandyMapPoints,
+    ]);
 
   const mappedKandyPlaces =
     useMemo(() => {
-      if (activeRoute) {
+      if (
+        activeRoute
+      ) {
         return activeRouteStops;
       }
 
@@ -438,11 +573,9 @@ export default function SriLankaMap() {
       filteredKandyPlaces,
     ]);
 
-  /*
-    -----------------------------------------
-    NORMAL ATTRACTION GEOJSON
-    -----------------------------------------
-  */
+  /* =======================================================
+     KANDY GEOJSON
+  ======================================================= */
 
   const kandyGeoJson =
     useMemo<
@@ -454,7 +587,9 @@ export default function SriLankaMap() {
 
         features:
           mappedKandyPlaces.map(
-            (place) => ({
+            (
+              place
+            ) => ({
               type:
                 "Feature",
 
@@ -469,7 +604,11 @@ export default function SriLankaMap() {
               },
 
               properties: {
-                id: place.id,
+                id:
+                  place.id,
+
+                slug:
+                  place.slug,
 
                 name:
                   place.name,
@@ -497,14 +636,14 @@ export default function SriLankaMap() {
             })
           ),
       }),
-      [mappedKandyPlaces]
+      [
+        mappedKandyPlaces,
+      ]
     );
 
-  /*
-    -----------------------------------------
-    ACTIVE ROUTE GEOJSON
-    -----------------------------------------
-  */
+  /* =======================================================
+     ROUTE LINE GEOJSON
+  ======================================================= */
 
   const routeLineGeoJson =
     useMemo<
@@ -529,7 +668,8 @@ export default function SriLankaMap() {
 
         features: [
           {
-            type: "Feature",
+            type:
+              "Feature",
 
             geometry: {
               type:
@@ -537,7 +677,9 @@ export default function SriLankaMap() {
 
               coordinates:
                 activeRouteStops.map(
-                  (place) => [
+                  (
+                    place
+                  ) => [
                     place.longitude,
                     place.latitude,
                   ]
@@ -562,68 +704,84 @@ export default function SriLankaMap() {
       activeRouteStops,
     ]);
 
+  /* =======================================================
+     ROUTE STOP GEOJSON
+  ======================================================= */
+
   const routeStopsGeoJson =
     useMemo<
       GeoJSONSourceSpecification["data"]
-    >(() => ({
-      type:
-        "FeatureCollection",
+    >(
+      () => ({
+        type:
+          "FeatureCollection",
 
-      features:
-        activeRouteStops.map(
-          (
-            place,
-            index
-          ) => ({
-            type:
-              "Feature",
-
-            geometry: {
+        features:
+          activeRouteStops.map(
+            (
+              place,
+              index
+            ) => ({
               type:
-                "Point",
+                "Feature",
 
-              coordinates: [
-                place.longitude,
-                place.latitude,
-              ],
-            },
+              geometry: {
+                type:
+                  "Point",
 
-            properties: {
-              id: place.id,
+                coordinates: [
+                  place.longitude,
+                  place.latitude,
+                ],
+              },
 
-              name:
-                place.name,
+              properties: {
+                id:
+                  place.id,
 
-              category:
-                place.category,
+                slug:
+                  place.slug,
 
-              stopNumber:
-                index + 1,
-            },
-          })
-        ),
-    }), [activeRouteStops]);
+                name:
+                  place.name,
 
-  /*
-    -----------------------------------------
-    CAMERA HELPERS
-    -----------------------------------------
-  */
+                category:
+                  place.category,
+
+                stopNumber:
+                  index +
+                  1,
+              },
+            })
+          ),
+      }),
+      [
+        activeRouteStops,
+      ]
+    );
+
+  /* =======================================================
+     CAMERA
+  ======================================================= */
 
   function fitKandyPlaces(
     places:
       MappedAttraction[]
   ) {
+    const map =
+      mapRef.current;
+
     if (
-      !mapRef.current
+      !map
     ) {
       return;
     }
 
     if (
-      places.length === 0
+      places.length ===
+      0
     ) {
-      mapRef.current.flyTo({
+      map.flyTo({
         center: [
           80.61,
           7.27,
@@ -631,31 +789,36 @@ export default function SriLankaMap() {
 
         zoom: 10,
 
-        duration: 1000,
+        duration:
+          1000,
 
-        essential: true,
+        essential:
+          true,
       });
 
       return;
     }
 
     if (
-      places.length === 1
+      places.length ===
+      1
     ) {
       const place =
         places[0];
 
-      mapRef.current.flyTo({
+      map.flyTo({
         center: [
           place.longitude,
           place.latitude,
         ],
 
-        zoom: 13.3,
+        zoom: 14,
 
-        duration: 950,
+        duration:
+          950,
 
-        essential: true,
+        essential:
+          true,
       });
 
       return;
@@ -702,41 +865,89 @@ export default function SriLankaMap() {
       window.innerWidth <
         760;
 
-    mapRef.current.fitBounds(
+    map.fitBounds(
       bounds,
       {
-        padding: isMobile
-          ? {
-              top: 210,
+        padding:
+          isMobile
+            ? {
+                top: 210,
 
-              right: 35,
+                right: 35,
 
-              bottom: 300,
+                bottom:
+                  300,
 
-              left: 35,
-            }
-          : {
-              top: 285,
+                left: 35,
+              }
+            : {
+                top: 285,
 
-              right: 105,
+                right: 105,
 
-              bottom: 85,
+                bottom: 85,
 
-              left: 525,
-            },
+                left: 525,
+              },
 
         maxZoom:
           activeRoute
             ? 12.2
             : 11.2,
 
-        duration: 1350,
+        duration:
+          1350,
       }
     );
   }
 
+  /* =======================================================
+     INITIAL MAP LOAD
+  ======================================================= */
+
+  function handleMapLoad() {
+    if (
+      deepLinkedAttraction &&
+      hasCoordinates(
+        deepLinkedAttraction
+      )
+    ) {
+      mapRef.current?.flyTo({
+        center: [
+          deepLinkedAttraction.longitude,
+          deepLinkedAttraction.latitude,
+        ],
+
+        zoom: 14.4,
+
+        duration:
+          1100,
+
+        essential:
+          true,
+      });
+
+      return;
+    }
+
+    if (
+      startsInKandy &&
+      allMappedKandyPlaces.length >
+        0
+    ) {
+      fitKandyPlaces(
+        allMappedKandyPlaces
+      );
+    }
+  }
+
+  /* =======================================================
+     SELECT ISLAND DESTINATION
+  ======================================================= */
+
   function selectIslandPlace(
-    place: MapPlace
+    place:
+      MapPlace
   ) {
     setSelectedPlace(
       place
@@ -754,13 +965,27 @@ export default function SriLankaMap() {
           ? 8
           : 7.6,
 
-      duration: 1050,
+      duration:
+        1050,
 
-      essential: true,
+      essential:
+        true,
     });
   }
 
+  /* =======================================================
+     OPEN KANDY
+  ======================================================= */
+
   function openKandy() {
+    router.replace(
+      "/map?mode=kandy",
+      {
+        scroll:
+          false,
+      }
+    );
+
     setMapMode(
       "kandy"
     );
@@ -786,29 +1011,48 @@ export default function SriLankaMap() {
     );
 
     window.setTimeout(
-      () =>
-        fitKandyPlaces(
-          allMappedKandyPlaces
-        ),
-      80
+      () => {
+        if (
+          allMappedKandyPlaces.length >
+          0
+        ) {
+          fitKandyPlaces(
+            allMappedKandyPlaces
+          );
+        }
+      },
+      50
     );
   }
+
+  /* =======================================================
+     SELECT ATTRACTION
+  ======================================================= */
 
   function selectAttraction(
     place:
       AttractionMapPoint
   ) {
     if (
-      place.latitude ===
-        null ||
-      place.longitude ===
-        null
+      !hasCoordinates(
+        place
+      )
     ) {
       return;
     }
 
     setSelectedAttraction(
       place
+    );
+
+    router.replace(
+      `/map?mode=kandy&attraction=${encodeURIComponent(
+        place.id
+      )}`,
+      {
+        scroll:
+          false,
+      }
     );
 
     mapRef.current?.flyTo({
@@ -819,16 +1063,30 @@ export default function SriLankaMap() {
 
       zoom: 14.4,
 
-      duration: 850,
+      duration:
+        850,
 
-      essential: true,
+      essential:
+        true,
     });
   }
+
+  /* =======================================================
+     KANDY FILTER
+  ======================================================= */
 
   function handleKandyFilter(
     category:
       KandyFilter
   ) {
+    router.replace(
+      "/map?mode=kandy",
+      {
+        scroll:
+          false,
+      }
+    );
+
     setActiveRouteId(
       null
     );
@@ -847,7 +1105,9 @@ export default function SriLankaMap() {
         "All"
           ? kandyMapPoints
           : kandyMapPoints.filter(
-              (place) =>
+              (
+                place
+              ) =>
                 place.category ===
                 category
             )
@@ -856,13 +1116,18 @@ export default function SriLankaMap() {
       );
 
     window.setTimeout(
-      () =>
+      () => {
         fitKandyPlaces(
           places
-        ),
+        );
+      },
       40
     );
   }
+
+  /* =======================================================
+     ROUTE SELECT
+  ======================================================= */
 
   function selectRoute(
     route:
@@ -870,12 +1135,15 @@ export default function SriLankaMap() {
   ) {
     const routeStops =
       route.stopIds
-        .map((id) =>
-          kandyMapPoints.find(
-            (place) =>
-              place.id ===
-              id
-          )
+        .map(
+          (id) =>
+            kandyMapPoints.find(
+              (
+                place
+              ) =>
+                place.id ===
+                id
+            )
         )
         .filter(
           (
@@ -888,6 +1156,14 @@ export default function SriLankaMap() {
                 )
             )
         );
+
+    router.replace(
+      "/map?mode=kandy",
+      {
+        scroll:
+          false,
+      }
+    );
 
     setActiveRouteId(
       route.id
@@ -902,15 +1178,28 @@ export default function SriLankaMap() {
     );
 
     window.setTimeout(
-      () =>
+      () => {
         fitKandyPlaces(
           routeStops
-        ),
+        );
+      },
       50
     );
   }
 
+  /* =======================================================
+     CLEAR ROUTE
+  ======================================================= */
+
   function clearRoute() {
+    router.replace(
+      "/map?mode=kandy",
+      {
+        scroll:
+          false,
+      }
+    );
+
     setActiveRouteId(
       null
     );
@@ -920,15 +1209,28 @@ export default function SriLankaMap() {
     );
 
     window.setTimeout(
-      () =>
+      () => {
         fitKandyPlaces(
           allMappedKandyPlaces
-        ),
+        );
+      },
       50
     );
   }
 
+  /* =======================================================
+     RESET ISLAND
+  ======================================================= */
+
   function resetMap() {
+    router.replace(
+      "/map",
+      {
+        scroll:
+          false,
+      }
+    );
+
     setMapMode(
       "island"
     );
@@ -969,17 +1271,17 @@ export default function SriLankaMap() {
 
       pitch: 0,
 
-      duration: 1200,
+      duration:
+        1200,
 
-      essential: true,
+      essential:
+        true,
     });
   }
 
-  /*
-    -----------------------------------------
-    MAP CLICK HANDLING
-    -----------------------------------------
-  */
+  /* =======================================================
+     MAP CLICK
+  ======================================================= */
 
   async function handleMapClick(
     event:
@@ -995,13 +1297,13 @@ export default function SriLankaMap() {
     const feature =
       event.features?.[0];
 
-    if (!feature) {
+    if (
+      !feature
+    ) {
       return;
     }
 
-    /*
-      Active route stops
-    */
+    /* ROUTE STOP */
 
     if (
       activeRoute &&
@@ -1017,16 +1319,20 @@ export default function SriLankaMap() {
       const id =
         String(
           feature.properties
-            ?.id ?? ""
+            ?.id ??
+            ""
         );
 
       const place =
         kandyMapPoints.find(
           (item) =>
-            item.id === id
+            item.id ===
+            id
         );
 
-      if (place) {
+      if (
+        place
+      ) {
         selectAttraction(
           place
         );
@@ -1035,9 +1341,7 @@ export default function SriLankaMap() {
       return;
     }
 
-    /*
-      Cluster click
-    */
+    /* CLUSTER */
 
     const clusterId =
       feature.properties
@@ -1072,7 +1376,9 @@ export default function SriLankaMap() {
           | GeoJSONSource
           | undefined;
 
-      if (!source) {
+      if (
+        !source
+      ) {
         return;
       }
 
@@ -1094,9 +1400,11 @@ export default function SriLankaMap() {
               15.5
             ),
 
-          duration: 650,
+          duration:
+            650,
 
-          essential: true,
+          essential:
+            true,
         });
       } catch {
         mapRef.current?.easeTo({
@@ -1112,44 +1420,55 @@ export default function SriLankaMap() {
               15.5
             ),
 
-          duration: 650,
+          duration:
+            650,
 
-          essential: true,
+          essential:
+            true,
         });
       }
 
       return;
     }
 
-    /*
-      Normal attraction
-    */
+    /* NORMAL POINT */
 
     const id =
       String(
         feature.properties
-          ?.id ?? ""
+          ?.id ??
+          ""
       );
 
-    if (!id) {
+    if (
+      !id
+    ) {
       return;
     }
 
     const place =
       kandyMapPoints.find(
         (item) =>
-          item.id === id
+          item.id ===
+          id
       );
 
-    if (place) {
+    if (
+      place
+    ) {
       selectAttraction(
         place
       );
     }
   }
 
+  /* =======================================================
+     INTERACTIVE LAYERS
+  ======================================================= */
+
   const interactiveLayers =
-    mapMode !== "kandy"
+    mapMode !==
+    "kandy"
       ? []
       : activeRoute
         ? [
@@ -1165,23 +1484,63 @@ export default function SriLankaMap() {
             "kandy-detail-labels",
           ];
 
+  /* =======================================================
+     SELECTED DETAIL PAGE URL
+  ======================================================= */
+
+  const selectedDetailHref =
+    selectedAttraction?.slug
+      ? `/destinations/kandy/${encodeURIComponent(
+          selectedAttraction.slug
+        )}`
+      : null;
+
+  const coordinateProgress =
+    kandyMapPoints.length >
+    0
+      ? (
+          allMappedKandyPlaces.length /
+          kandyMapPoints.length
+        ) *
+        100
+      : 0;
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
   return (
     <section className="sl-map-shell">
       <Map
-        ref={mapRef}
+        ref={
+          mapRef
+        }
         initialViewState={{
-          longitude: 80.72,
+          longitude:
+            startsInKandy
+              ? 80.63
+              : 80.72,
 
-          latitude: 7.55,
+          latitude:
+            startsInKandy
+              ? 7.29
+              : 7.55,
 
-          zoom: 6.85,
+          zoom:
+            startsInKandy
+              ? 10
+              : 6.85,
 
           bearing: 0,
 
           pitch: 0,
         }}
-        minZoom={5.5}
-        maxZoom={16}
+        minZoom={
+          5.5
+        }
+        maxZoom={
+          16
+        }
         mapStyle="https://tiles.openfreemap.org/styles/liberty"
         style={{
           position:
@@ -1189,14 +1548,21 @@ export default function SriLankaMap() {
 
           inset: 0,
 
-          width: "100%",
+          width:
+            "100%",
 
-          height: "100%",
+          height:
+            "100%",
         }}
         interactiveLayerIds={
           interactiveLayers
         }
-        cursor={mapCursor}
+        cursor={
+          mapCursor
+        }
+        onLoad={
+          handleMapLoad
+        }
         onMouseEnter={() =>
           setMapCursor(
             "pointer"
@@ -1218,9 +1584,9 @@ export default function SriLankaMap() {
           }
         />
 
-        {/* ====================================
-            KANDY DISTRICT BOUNDARY
-        ===================================== */}
+        {/* ===============================================
+            KANDY BOUNDARY
+        =============================================== */}
 
         {mapMode ===
           "kandy" &&
@@ -1260,8 +1626,10 @@ export default function SriLankaMap() {
                       [
                         "zoom",
                       ],
+
                       7,
                       1.5,
+
                       12,
                       3,
                     ],
@@ -1279,17 +1647,25 @@ export default function SriLankaMap() {
             </Source>
           )}
 
-        {/* ====================================
+        {/* ===============================================
             ISLAND DESTINATIONS
-        ===================================== */}
+        =============================================== */}
 
         {mapMode ===
           "island" &&
           filteredIslandPlaces.map(
-            (place) => {
+            (
+              place
+            ) => {
               const active =
                 selectedPlace?.id ===
                 place.id;
+
+              const experienceCount =
+                place.id ===
+                "kandy"
+                  ? kandyMapPoints.length
+                  : place.experienceCount;
 
               return (
                 <Marker
@@ -1346,10 +1722,11 @@ export default function SriLankaMap() {
                       }
 
                       {place.pilot &&
-                        place.experienceCount && (
+                        experienceCount >
+                          0 && (
                           <small>
                             {
-                              place.experienceCount
+                              experienceCount
                             }{" "}
                             experiences
                           </small>
@@ -1361,13 +1738,15 @@ export default function SriLankaMap() {
             }
           )}
 
-        {/* ====================================
-            NORMAL KANDY CLUSTERS
-        ===================================== */}
+        {/* ===============================================
+            KANDY CLUSTER SOURCE
+        =============================================== */}
 
         {mapMode ===
           "kandy" &&
-          !activeRoute && (
+          !activeRoute &&
+          kandyMapPoints.length >
+            0 && (
             <Source
               id="kandy-attractions"
               type="geojson"
@@ -1393,6 +1772,7 @@ export default function SriLankaMap() {
                   "circle-color":
                     [
                       "step",
+
                       [
                         "get",
                         "point_count",
@@ -1410,6 +1790,7 @@ export default function SriLankaMap() {
                   "circle-radius":
                     [
                       "step",
+
                       [
                         "get",
                         "point_count",
@@ -1446,6 +1827,7 @@ export default function SriLankaMap() {
                   "text-field":
                     [
                       "to-string",
+
                       [
                         "get",
                         "point_count_abbreviated",
@@ -1483,6 +1865,7 @@ export default function SriLankaMap() {
 
                   [
                     "==",
+
                     [
                       "get",
                       "id",
@@ -1512,6 +1895,7 @@ export default function SriLankaMap() {
                 type="circle"
                 filter={[
                   "!",
+
                   [
                     "has",
                     "point_count",
@@ -1521,9 +1905,11 @@ export default function SriLankaMap() {
                   "circle-radius":
                     [
                       "interpolate",
+
                       [
                         "linear",
                       ],
+
                       [
                         "zoom",
                       ],
@@ -1541,6 +1927,7 @@ export default function SriLankaMap() {
                   "circle-color":
                     [
                       "match",
+
                       [
                         "get",
                         "category",
@@ -1586,6 +1973,7 @@ export default function SriLankaMap() {
 
                   [
                     "!",
+
                     [
                       "has",
                       "point_count",
@@ -1594,10 +1982,12 @@ export default function SriLankaMap() {
 
                   [
                     ">=",
+
                     [
                       "get",
                       "labelPriority",
                     ],
+
                     2,
                   ],
                 ]}
@@ -1649,6 +2039,7 @@ export default function SriLankaMap() {
                 }
                 filter={[
                   "!",
+
                   [
                     "has",
                     "point_count",
@@ -1696,13 +2087,15 @@ export default function SriLankaMap() {
             </Source>
           )}
 
-        {/* ====================================
-            ACTIVE TOURISM ROUTE
-        ===================================== */}
+        {/* ===============================================
+            ACTIVE ROUTE
+        =============================================== */}
 
         {mapMode ===
           "kandy" &&
-          activeRoute && (
+          activeRoute &&
+          activeRouteStops.length >
+            0 && (
             <>
               <Source
                 id="active-tourism-route"
@@ -1806,6 +2199,7 @@ export default function SriLankaMap() {
                     "text-field":
                       [
                         "to-string",
+
                         [
                           "get",
                           "stopNumber",
@@ -1830,7 +2224,9 @@ export default function SriLankaMap() {
                 <Layer
                   id="kandy-route-labels"
                   type="symbol"
-                  minzoom={9}
+                  minzoom={
+                    9
+                  }
                   layout={{
                     "text-field":
                       [
@@ -1875,9 +2271,9 @@ export default function SriLankaMap() {
           )}
       </Map>
 
-      {/* ====================================
+      {/* ===============================================
           TOP BAR
-      ===================================== */}
+      =============================================== */}
 
       <div className="sl-map-topbar">
         {mapMode ===
@@ -1887,7 +2283,9 @@ export default function SriLankaMap() {
             className="map-back-button"
           >
             <ArrowLeft
-              size={18}
+              size={
+                18
+              }
             />
 
             Back
@@ -1900,7 +2298,9 @@ export default function SriLankaMap() {
             }
           >
             <ArrowLeft
-              size={18}
+              size={
+                18
+              }
             />
 
             Sri Lanka
@@ -1910,7 +2310,9 @@ export default function SriLankaMap() {
         <div className="map-page-brand">
           <div className="map-page-brand-icon">
             <Compass
-              size={18}
+              size={
+                18
+              }
             />
           </div>
 
@@ -1938,16 +2340,18 @@ export default function SriLankaMap() {
           }
         >
           <Layers3
-            size={17}
+            size={
+              17
+            }
           />
 
           Island View
         </button>
       </div>
 
-      {/* ====================================
-          CATEGORY FILTERS
-      ===================================== */}
+      {/* ===============================================
+          FILTERS
+      =============================================== */}
 
       <div className="map-filter-panel">
         <span className="map-filter-label">
@@ -2024,6 +2428,9 @@ export default function SriLankaMap() {
                         ? "active"
                         : ""
                     }
+                    disabled={
+                      mapDataUnavailable
+                    }
                   >
                     {category ===
                     "All" ? (
@@ -2052,9 +2459,9 @@ export default function SriLankaMap() {
         </div>
       </div>
 
-      {/* ====================================
+      {/* ===============================================
           ROUTE SELECTOR
-      ===================================== */}
+      =============================================== */}
 
       {mapMode ===
         "kandy" && (
@@ -2072,7 +2479,9 @@ export default function SriLankaMap() {
                   }
                 >
                   <X
-                    size={13}
+                    size={
+                      13
+                    }
                   />
 
                   Clear route
@@ -2082,7 +2491,9 @@ export default function SriLankaMap() {
 
             <div className="route-selector-scroll">
               {tourismRoutes.map(
-                (route) => (
+                (
+                  route
+                ) => (
                   <button
                     key={
                       route.id
@@ -2098,9 +2509,16 @@ export default function SriLankaMap() {
                         route
                       )
                     }
+                    disabled={
+                      mapDataUnavailable ||
+                      kandyMapPoints.length ===
+                        0
+                    }
                   >
                     <Route
-                      size={15}
+                      size={
+                        15
+                      }
                     />
 
                     <span>
@@ -2115,9 +2533,9 @@ export default function SriLankaMap() {
           </div>
         )}
 
-      {/* ====================================
-          LOCATION TITLE
-      ===================================== */}
+      {/* ===============================================
+          MAP LOCATION LABEL
+      =============================================== */}
 
       {mapMode ===
       "island" ? (
@@ -2146,15 +2564,18 @@ export default function SriLankaMap() {
           </strong>
 
           <small>
-            30 structured
+            {
+              kandyMapPoints.length
+            }{" "}
+            database
             experiences
           </small>
         </div>
       )}
 
-      {/* ====================================
+      {/* ===============================================
           ISLAND CARD
-      ===================================== */}
+      =============================================== */}
 
       {mapMode ===
         "island" &&
@@ -2167,9 +2588,12 @@ export default function SriLankaMap() {
                   null
                 )
               }
+              aria-label="Close destination"
             >
               <X
-                size={17}
+                size={
+                  17
+                }
               />
             </button>
 
@@ -2179,7 +2603,9 @@ export default function SriLankaMap() {
                   category={
                     selectedPlace.category
                   }
-                  size={21}
+                  size={
+                    21
+                  }
                 />
               </div>
 
@@ -2213,7 +2639,9 @@ export default function SriLankaMap() {
 
             <div className="selected-map-location">
               <MapPin
-                size={14}
+                size={
+                  14
+                }
               />
 
               {
@@ -2233,53 +2661,86 @@ export default function SriLankaMap() {
               }
             </p>
 
-            {selectedPlace.experienceCount && (
-              <div className="selected-map-stat">
-                <strong>
-                  {
-                    selectedPlace.experienceCount
-                  }
-                </strong>
+            {selectedPlace.id ===
+            "kandy" ? (
+              kandyMapPoints.length >
+                0 && (
+                <div className="selected-map-stat">
+                  <strong>
+                    {
+                      kandyMapPoints.length
+                    }
+                  </strong>
 
-                <span>
-                  structured
-                  <br />
-                  experiences
-                </span>
-              </div>
+                  <span>
+                    database
+                    <br />
+                    experiences
+                  </span>
+                </div>
+              )
+            ) : (
+              selectedPlace.experienceCount && (
+                <div className="selected-map-stat">
+                  <strong>
+                    {
+                      selectedPlace.experienceCount
+                    }
+                  </strong>
+
+                  <span>
+                    structured
+                    <br />
+                    experiences
+                  </span>
+                </div>
+              )
             )}
 
             <button
               className={`selected-explore-button ${
                 selectedPlace.id !==
-                "kandy"
+                "kandy" ||
+                mapDataUnavailable
                   ? "disabled"
                   : ""
               }`}
+              disabled={
+                selectedPlace.id !==
+                  "kandy" ||
+                mapDataUnavailable
+              }
               onClick={() => {
                 if (
                   selectedPlace.id ===
-                  "kandy"
+                    "kandy" &&
+                  !mapDataUnavailable
                 ) {
                   openKandy();
                 }
               }}
             >
-              {selectedPlace.id ===
-              "kandy"
-                ? "Explore Kandy"
-                : "Coming soon"}
+              {mapDataUnavailable &&
+              selectedPlace.id ===
+                "kandy"
+                ? "Map data unavailable"
+                : selectedPlace.id ===
+                    "kandy"
+                  ? "Explore Kandy"
+                  : "Coming soon"}
 
               <ChevronRight
-                size={18}
+                size={
+                  18
+                }
               />
             </button>
           </aside>
         )}
 
-      {/* ====================================
-          ACTIVE ROUTE CARD
-      ===================================== */}
+      {/* ===============================================
+          ROUTE CARD
+      =============================================== */}
 
       {mapMode ===
         "kandy" &&
@@ -2288,7 +2749,9 @@ export default function SriLankaMap() {
           <aside className="route-overview-card">
             <div className="route-card-badge">
               <Route
-                size={14}
+                size={
+                  14
+                }
               />
 
               Curated
@@ -2316,7 +2779,9 @@ export default function SriLankaMap() {
             <div className="route-card-meta">
               <span>
                 <Clock3
-                  size={13}
+                  size={
+                    13
+                  }
                 />
 
                 {
@@ -2379,7 +2844,7 @@ export default function SriLankaMap() {
 
             <div className="route-preview-warning">
               Preview route
-              connects verified
+              connects database
               stops. It is not
               turn-by-turn road
               navigation yet.
@@ -2397,124 +2862,174 @@ export default function SriLankaMap() {
               on map
 
               <Route
-                size={17}
+                size={
+                  17
+                }
               />
             </button>
           </aside>
         )}
 
-      {/* ====================================
-          NORMAL KANDY OVERVIEW
-      ===================================== */}
+      {/* ===============================================
+          KANDY OVERVIEW
+      =============================================== */}
 
       {mapMode ===
         "kandy" &&
         !activeRoute &&
         !selectedAttraction && (
           <aside className="kandy-overview-card">
-            <div className="kandy-overview-badge">
-              <ShieldCheck
-                size={15}
-              />
+            {mapDataUnavailable ? (
+              <>
+                <div className="kandy-overview-badge">
+                  <X
+                    size={
+                      15
+                    }
+                  />
 
-              Verified
-              pilot district
-            </div>
+                  Data service
+                  unavailable
+                </div>
 
-            <span className="kandy-overview-region">
-              CENTRAL PROVINCE
-            </span>
-
-            <h2>
-              Kandy
-            </h2>
-
-            <p>
-              Explore Sri
-              Lanka&apos;s
-              sacred hill
-              capital through
-              royal heritage,
-              temples,
-              forests,
-              mountains,
-              tea country
-              and living
-              culture.
-            </p>
-
-            <div className="kandy-overview-stats">
-              <div>
-                <strong>
-                  30
-                </strong>
-
-                <span>
-                  structured
-                  <br />
-                  experiences
-                </span>
-              </div>
-
-              <div>
-                <strong>
-                  {
-                    allMappedKandyPlaces.length
-                  }
-                </strong>
-
-                <span>
-                  verified
-                  <br />
-                  map points
-                </span>
-              </div>
-            </div>
-
-            <div className="coordinate-progress">
-              <div>
-                <span>
-                  Map
-                  verification
-                  progress
+                <span className="kandy-overview-region">
+                  CENTRAL
+                  PROVINCE
                 </span>
 
-                <strong>
-                  {
-                    allMappedKandyPlaces.length
-                  }
-                  /30
-                </strong>
-              </div>
+                <h2>
+                  Kandy
+                </h2>
 
-              <div className="coordinate-progress-track">
-                <div
-                  className="coordinate-progress-value"
-                  style={{
-                    width: `${
-                      (allMappedKandyPlaces.length /
-                        30) *
-                      100
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
+                <p>
+                  Tourism map data
+                  could not be
+                  loaded from the
+                  travel API.
+                  Please try again
+                  after the service
+                  is available.
+                </p>
 
-            <div className="kandy-overview-note">
-              Choose a
-              category,
-              journey or
-              map cluster
-              to start
-              exploring.
-            </div>
+                <div className="kandy-overview-note">
+                  The base map is
+                  still available,
+                  but attraction
+                  points and
+                  journeys are
+                  temporarily
+                  unavailable.
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="kandy-overview-badge">
+                  <ShieldCheck
+                    size={
+                      15
+                    }
+                  />
+
+                  Database
+                  connected
+                </div>
+
+                <span className="kandy-overview-region">
+                  CENTRAL
+                  PROVINCE
+                </span>
+
+                <h2>
+                  Kandy
+                </h2>
+
+                <p>
+                  Explore Sri
+                  Lanka&apos;s
+                  sacred hill
+                  capital through
+                  royal heritage,
+                  temples,
+                  forests,
+                  mountains,
+                  tea country and
+                  living culture.
+                </p>
+
+                <div className="kandy-overview-stats">
+                  <div>
+                    <strong>
+                      {
+                        kandyMapPoints.length
+                      }
+                    </strong>
+
+                    <span>
+                      database
+                      <br />
+                      experiences
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong>
+                      {
+                        allMappedKandyPlaces.length
+                      }
+                    </strong>
+
+                    <span>
+                      mapped
+                      <br />
+                      locations
+                    </span>
+                  </div>
+                </div>
+
+                <div className="coordinate-progress">
+                  <div>
+                    <span>
+                      Coordinate
+                      coverage
+                    </span>
+
+                    <strong>
+                      {
+                        allMappedKandyPlaces.length
+                      }
+                      /
+                      {
+                        kandyMapPoints.length
+                      }
+                    </strong>
+                  </div>
+
+                  <div className="coordinate-progress-track">
+                    <div
+                      className="coordinate-progress-value"
+                      style={{
+                        width: `${coordinateProgress}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="kandy-overview-note">
+                  Attraction
+                  locations on
+                  this map are
+                  loaded from the
+                  MongoDB-backed
+                  tourism API.
+                </div>
+              </>
+            )}
           </aside>
         )}
 
-      {/* ====================================
+      {/* ===============================================
           ATTRACTION CARD
-      ===================================== */}
+      =============================================== */}
 
       {mapMode ===
         "kandy" &&
@@ -2522,14 +3037,25 @@ export default function SriLankaMap() {
           <aside className="attraction-map-card">
             <button
               className="selected-map-close"
-              onClick={() =>
+              onClick={() => {
                 setSelectedAttraction(
                   null
-                )
-              }
+                );
+
+                router.replace(
+                  "/map?mode=kandy",
+                  {
+                    scroll:
+                      false,
+                  }
+                );
+              }}
+              aria-label="Close attraction"
             >
               <X
-                size={17}
+                size={
+                  17
+                }
               />
             </button>
 
@@ -2541,7 +3067,9 @@ export default function SriLankaMap() {
 
             <div className="selected-map-location">
               <MapPin
-                size={14}
+                size={
+                  14
+                }
               />
 
               {
@@ -2575,32 +3103,58 @@ export default function SriLankaMap() {
               }
             </p>
 
-            <div className="attraction-verification">
-              <ShieldCheck
-                size={15}
-              />
+            {selectedAttraction.verified && (
+              <div className="attraction-verification">
+                <ShieldCheck
+                  size={
+                    15
+                  }
+                />
 
-              Map point
-              verified ·{" "}
-              {
-                selectedAttraction.coordinateAccuracy
-              }
-            </div>
+                Map point ·{" "}
+                {
+                  selectedAttraction.coordinateAccuracy
+                }
+              </div>
+            )}
 
-            <button className="selected-explore-button">
-              View full
-              attraction
+            {selectedDetailHref ? (
+              <Link
+                href={
+                  selectedDetailHref
+                }
+                className="selected-explore-button"
+              >
+                View full
+                attraction
 
-              <ChevronRight
-                size={18}
-              />
-            </button>
+                <ChevronRight
+                  size={
+                    18
+                  }
+                />
+              </Link>
+            ) : (
+              <button
+                className="selected-explore-button disabled"
+                disabled
+              >
+                Detail page
+                unavailable
+
+                <ChevronRight
+                  size={
+                    18
+                  }
+                />
+              </button>
+            )}
           </aside>
         )}
 
-      {/* ====================================
+      {/* ===============================================
           LEGEND
-      ===================================== */}
+      =============================================== */}
 
       {mapMode ===
         "island" && (
@@ -2620,7 +3174,8 @@ export default function SriLankaMap() {
         )}
 
       {mapMode ===
-        "kandy" && (
+        "kandy" &&
+        !mapDataUnavailable && (
           <div className="map-legend">
             {boundaryGeoJson && (
               <div>
